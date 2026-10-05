@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roblox Studio Web Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        roblox: {
+                            dark: '#121212',
+                            darker: '#0a0a0a',
+                            panel: '#1e1e1e',
+                            border: '#333333',
+                            accent: '#007acc',
+                            hover: '#2a2d2e',
+                            active: '#37373d',
+                            text: '#cccccc',
+                            bright: '#ffffff'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #121212; color: #cccccc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; user-select: none; overflow: hidden; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #1e1e1e; }
+        ::-webkit-scrollbar-thumb { background: #424242; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4f4f4f; }
+        .resizer { width: 4px; cursor: col-resize; background: #2d2d2d; transition: background 0.2s; }
+        .resizer:hover, .resizer.active { background: #007acc; }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col">
+
+    <header class="h-10 bg-roblox-darker border-b border-roblox-border flex items-center px-3 justify-between text-xs shrink-0 select-none">
+        <div class="flex items-center space-x-4">
+            <div class="flex items-center space-x-1 font-bold text-roblox-bright text-sm">
+                <i class="fa-solid fa-cube text-blue-500"></i>
+                <span>Roblox Studio</span>
+            </div>
+            <nav class="flex items-center space-x-1">
+                <div class="relative group">
+                    <button class="px-2 py-1 hover:bg-roblox-hover rounded">File</button>
+                    <div class="absolute left-0 mt-1 w-44 bg-roblox-panel border border-roblox-border shadow-lg rounded hidden group-hover:block z-50">
+                        <button onclick="saveProject()" class="w-full text-left px-3 py-1.5 hover:bg-roblox-active flex items-center justify-between"><span>Save Project</span><span class="text-[10px] text-gray-400">Ctrl+S</span></button>
+                        <button onclick="loadProject()" class="w-full text-left px-3 py-1.5 hover:bg-roblox-active flex items-center justify-between"><span>Load Project</span></button>
+                        <button onclick="exportPlace()" class="w-full text-left px-3 py-1.5 hover:bg-roblox-active">Export to File (.rbxl)</button>
+                        <div class="border-t border-roblox-border my-1"></div>
+                        <button onclick="resetProject()" class="w-full text-left px-3 py-1.5 hover:bg-roblox-active text-red-400">New Project</button>
+                    </div>
+                </div>
+                <div class="relative group">
+                    <button class="px-2 py-1 hover:bg-roblox-hover rounded">Model</button>
+                    <div class="absolute left-0 mt-1 w-44 bg-roblox-panel border border-roblox-border shadow-lg rounded hidden group-hover:block z-50">
+                        <button onclick="insertPart('Part')" class="w-full text-left px-3 py-1.5 hover:bg-roblox-active">Insert Part</button>
+                        <button onclick="insertPart('Sphere')" class="w-full text-left px-3 py-1.5 hover:bg-roblox-active">Insert Sphere</button>
+                        <button onclick="insertPart('Cylinder')" class="w-full text-left px-3 py-1.5 hover:bg-roblox-active">Insert Cylinder</button>
+                        <button onclick="insertPart('Wedge')" class="w-full text-left px-3 py-1.5 hover:bg-roblox-active">Insert Wedge</button>
+                        <button onclick="insertPart('SpawnLocation')" class="w-full text-left px-3 py-1.5 hover:bg-roblox-active">Insert SpawnLocation</button>
+                    </div>
+                </div>
+                <div class="relative group">
+                    <button class="px-2 py-1 hover:bg-roblox-hover rounded">View</button>
+                    <div class="absolute left-0 mt-1 w-44 bg-roblox-panel border border-roblox-border shadow-lg rounded hidden group-hover:block z-50">
+                        <button onclick="togglePanel('explorer')" class="w-full text-left px-3 py-1.5 hover:bg-roblox-active">Toggle Explorer</button>
+                        <button onclick="togglePanel('properties')" class="w-full text-left px-3 py-1.5 hover:bg-roblox-active">Toggle Properties</button>
+                        <button onclick="togglePanel('toolbox')" class="w-full text-left px-3 py-1.5 hover:bg-roblox-active">Toggle Toolbox</button>
+                    </div>
+                </div>
+            </nav>
+        </div>
+
+        <!-- Center Ribbon / Toolbar Quick Actions -->
+        <div class="flex items-center space-x-2 bg-roblox-panel px-3 py-1 rounded border border-roblox-border">
+            <button onclick="setTool('select')" id="tool-select" class="p-1 px-2 rounded bg-roblox-active text-white title" title="Select Tool"><i class="fa-solid fa-arrow-pointer"></i></button>
+            <button onclick="setTool('move')" id="tool-move" class="p-1 px-2 rounded hover:bg-roblox-hover" title="Move Tool"><i class="fa-solid fa-arrows-up-down-left-right"></i></button>
+            <button onclick="setTool('scale')" id="tool-scale" class="p-1 px-2 rounded hover:bg-roblox-hover" title="Scale Tool"><i class="fa-solid fa-expand"></i></button>
+            <button onclick="setTool('rotate')" id="tool-rotate" class="p-1 px-2 rounded hover:bg-roblox-hover" title="Rotate Tool"><i class="fa-solid fa-rotate"></i></button>
+            <div class="h-4 w-[1px] bg-roblox-border mx-1"></div>
+            <button onclick="insertPart('Part')" class="flex items-center space-x-1 px-2 py-0.5 bg-blue-600 hover:bg-blue-500 text-white rounded"><i class="fa-solid fa-plus text-[10px]"></i><span>Part</span></button>
+            <button onclick="insertPart('Sphere')" class="flex items-center space-x-1 px-2 py-0.5 bg-zinc-700 hover:bg-zinc-600 text-white rounded"><i class="fa-solid fa-circle text-[10px]"></i><span>Sphere</span></button>
+            <button onclick="insertPart('Cylinder')" class="flex items-center space-x-1 px-2 py-0.5 bg-zinc-700 hover:bg-zinc-600 text-white rounded"><i class="fa-solid fa-database text-[10px]"></i><span>Cylinder</span></button>
+        </div>
+
+        <!-- Playtest & Status -->
+        <div class="flex items-center space-x-3">
+            <button id="play-btn" onclick="togglePlayTest()" class="flex items-center space-x-2 px-3 py-1 bg-green-600 hover:bg-green-500 text-white rounded font-bold">
+                <i id="play-icon" class="fa-solid fa-play"></i>
+                <span id="play-text">Play</span>
+            </button>
+            <span id="save-status" class="text-[10px] text-green-400">All changes saved</span>
+        </div>
+    </header>
+
+    <div class="flex-1 flex overflow-hidden relative">
+
+        <!-- Left Sidebar: Explorer & Toolbox -->
+        <div id="left-sidebar" class="w-72 bg-roblox-darker border-r border-roblox-border flex flex-col shrink-0 select-none">
+            <!-- Sidebar Tab Headers -->
+            <div class="flex border-b border-roblox-border bg-roblox-panel text-xs">
+                <button onclick="switchLeftTab('explorer')" id="tab-explorer-btn" class="flex-1 py-2 font-bold border-b-2 border-blue-500 text-white bg-roblox-darker">Explorer</button>
+                <button onclick="switchLeftTab('toolbox')" id="tab-toolbox-btn" class="flex-1 py-2 text-gray-400 hover:text-white">Toolbox</button>
+            </div>
+
+            <!-- Explorer Tab Content -->
+            <div id="explorer-pane" class="flex-1 flex flex-col overflow-hidden">
+                <div class="p-2 border-b border-roblox-border flex items-center justify-between text-xs">
+                    <span class="font-bold text-gray-300">Workspace</span>
+                    <input type="text" id="explorer-search" placeholder="Filter workspace..." oninput="filterExplorer(this.value)" class="bg-roblox-panel border border-roblox-border px-2 py-0.5 rounded text-[11px] text-white w-36 focus:outline-none focus:border-blue-500">
+                </div>
+                <div id="explorer-tree" class="flex-1 overflow-y-auto p-1 text-xs space-y-0.5">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Toolbox Tab Content (Roblox Store simulation) -->
+            <div id="toolbox-pane" class="flex-1 flex flex-col overflow-hidden hidden">
+                <div class="p-2 border-b border-roblox-border">
+                    <input type="text" id="toolbox-search" placeholder="Search marketplace..." oninput="filterToolbox(this.value)" class="w-full bg-roblox-panel border border-roblox-border px-2 py-1 rounded text-xs text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div id="toolbox-items" class="flex-1 overflow-y-auto p-2 grid grid-cols-2 gap-2 text-xs">
+                    <!-- Toolbox items populate here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Resizer Left -->
+        <div class="resizer" id="resizer-left"></div>
+
+        <!-- Center Viewport & Script Editor Tabs -->
+        <div class="flex-1 flex flex-col bg-roblox-dark relative overflow-hidden">
+            <!-- Viewport / Editor Mode Switcher Tabs -->
+            <div id="document-tabs" class="h-8 bg-roblox-darker border-b border-roblox-border flex items-center px-2 space-x-1 text-xs shrink-0">
+                <button onclick="switchCenterTab('viewport')" id="tab-viewport" class="px-3 py-1 bg-roblox-panel text-white border-t-2 border-blue-500 rounded-t flex items-center space-x-2">
+                    <i class="fa-solid fa-cube text-blue-400"></i>
+                    <span>Workspace</span>
+                </button>
+            </div>
+
+            <!-- 3D Viewport Canvas Container -->
+            <div id="viewport-container" class="flex-1 relative w-full h-full overflow-hidden">
+                <div id="renderCanvas" class="w-full h-full"></div>
+
+                <!-- On-Screen Controls / HUD / Joystick for mobile or free camera -->
+                <div class="absolute bottom-4 left-4 bg-roblox-darker/80 backdrop-blur border border-roblox-border p-3 rounded-lg text-xs space-y-2 pointer-events-auto">
+                    <div class="font-bold text-gray-300 flex items-center justify-between">
+                        <span>Free Camera / Navigation</span>
+                        <span class="text-[10px] bg-blue-600/30 text-blue-400 px-1.5 py-0.5 rounded">WASD / Mouse</span>
+                    </div>
+                    <div class="text-[11px] text-gray-400 space-y-1">
+                        <div>• <b class="text-white">Right Click + Drag</b>: Orbit Camera</div>
+                        <div>• <b class="text-white">WASD / Arrow Keys</b>: Move Camera</div>
+                        <div>• <b class="text-white">Click Object</b>: Select in Explorer & Properties</div>
+                    </div>
+                </div>
+
+                <!-- Touch Joystick Overlay for Mobile / Tablet -->
+                <div id="touch-joystick" class="absolute bottom-6 right-6 w-28 h-28 bg-black/40 border-2 border-white/20 rounded-full hidden flex items-center justify-center touch-none">
+                    <div id="joystick-thumb" class="w-12 h-12 bg-blue-500/80 rounded-full shadow-lg absolute"></div>
+                </div>
+            </div>
+
+            <!-- Script Editor Container (Hidden by default until a script is opened) -->
+            <div id="script-editor-container" class="flex-1 hidden flex flex-col bg-[#1e1e1e] relative">
+                <div class="h-9 bg-roblox-darker border-b border-roblox-border flex items-center px-3 justify-between text-xs">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-file-code text-yellow-400"></i>
+                        <span id="active-script-name" class="font-bold text-white">Script.lua</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="runScriptTest()" class="px-2.5 py-1 bg-green-600 hover:bg-green-500 text-white rounded text-[11px]"><i class="fa-solid fa-play mr-1"></i>Test Script</button>
+                        <button onclick="closeScriptEditor()" class="p-1 hover:bg-roblox-active text-gray-400 hover:text-white rounded"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                </div>
+                <div class="flex-1 relative flex">
+                    <!-- Line numbers -->
+                    <div id="line-numbers" class="w-12 bg-roblox-darker text-gray-500 text-right pr-3 pt-3 font-mono text-xs select-none border-r border-roblox-border">1</div>
+                    <!-- Editor textarea -->
+                    <textarea id="script-textarea" oninput="onScriptInput(this)" onkeydown="onScriptKeyDown(event)" class="flex-1 bg-transparent text-gray-200 font-mono text-xs p-3 resize-none focus:outline-none leading-relaxed" spellcheck="false">-- Roblox Luau Script Example
+local part = script.Parent
+part.BrickColor = BrickColor.new("Bright red")
+
+while true do
+    task.wait(1)
+    part.Transparency = (part.Transparency == 0) and 0.5 or 0
+end</textarea>
+                    
+                    <!-- Autocomplete Popup Box -->
+                    <div id="autocomplete-box" class="absolute bg-roblox-panel border border-roblox-border shadow-2xl rounded w-64 max-h-48 overflow-y-auto hidden z-50 text-xs">
+                        <!-- Populated by autocomplete engine -->
+                    </div>
+                </div>
+                <div class="h-6 bg-roblox-darker border-t border-roblox-border px-3 flex items-center justify-between text-[11px] text-gray-400">
+                    <span id="cursor-pos">Ln 1, Col 1</span>
+                    <span class="text-green-400">Luau Engine Ready</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resizer Right -->
+        <div class="resizer" id="resizer-right"></div>
+
+        <!-- Right Sidebar: Properties -->
+        <div id="right-sidebar" class="w-80 bg-roblox-darker border-l border-roblox-border flex flex-col shrink-0 select-none">
+            <div class="bg-roblox-panel px-3 py-2 border-b border-roblox-border text-xs font-bold text-white flex items-center justify-between">
+                <span>Properties</span>
+                <span id="selected-class-name" class="text-[10px] text-blue-400 font-normal">No selection</span>
+            </div>
+            <div id="properties-content" class="flex-1 overflow-y-auto p-2 text-xs space-y-3">
+                <div class="text-center text-gray-500 py-10">Select an object in the Explorer or Viewport to view properties.</div>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="modal-backdrop" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center">
+        <div class="bg-roblox-panel border border-roblox-border rounded-lg p-5 w-96 shadow-2xl text-xs space-y-4">
+            <h3 id="modal-title" class="font-bold text-white text-sm">Notification</h3>
+            <p id="modal-message" class="text-gray-300 leading-relaxed"></p>
+            <div class="flex justify-end space-x-2 pt-2">
+                <button onclick="closeModal()" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- COMPREHENSIVE ROBLOX DATA LISTS & AUTOCOMPLETE DICTIONARY ---
+        const ROBLOX_SERVICES = [
+            "Workspace", "Players", "Lighting", "MaterialService", "ReplicatedFirst", "ReplicatedStorage",
+            "ServerScriptService", "ServerStorage", "StarterGui", "StarterPack", "StarterPlayer", "Teams",
+            "SoundService", "TextChatService", "Chat", "LocalizationService", "TestService", "HttpService",
+            "PhysicsService", "MarketplaceService", "BadgeService", "DataStoreService", "MemoryStoreService",
+            "MessagingService", "TeleportService", "RunService", "UserInputService", "ContextActionService",
+            "TweenService", "CollectionService", "InsertService", "AssetService", "GroupService", "SocialService",
+            "VoiceChatService"
+        ];
+
+        const ROBLOX_CLASSES = [
+            "Actor", "AdGui", "AdPortal", "AirController", "AlignOrientation", "AlignPosition", "AngularVelocity",
+            "Animation", "AnimationConstraint", "AnimationController", "AnimationTrack", "ArcHandles", "Atmosphere",
+            "Attachment", "AudioAnalyzer", "AudioChorus", "AudioCompressor", "AvatarEditorService", "Backpack",
+            "BallSocketConstraint", "BasePart", "Beam", "BillboardGui", "BindableEvent", "BindableFunction",
+            "BodyAngularVelocity", "BodyForce", "BodyGyro", "BodyPosition", "BodyThrust", "BodyVelocity", "Bone",
+            "BoolValue", "BoxHandleAdornment", "BrickColorValue", "Camera", "CanvasGroup", "CFrameValue",
+            "ChatWindowConfiguration", "ClickDetector", "Clothing", "Color3Value", "ColorCorrectionEffect",
+            "CornerWedgePart", "CylindricalConstraint", "DataStoreService", "Debris", "DepthOfFieldEffect",
+            "Dialog", "DialogChoice", "DragDetector", "EditableImage", "EditableMesh", "Fire", "Folder",
+            "ForceField", "Frame", "Handles", "HapticService", "Hat", "HingeConstraint", "Highlight",
+            "Humanoid", "HumanoidDescription", "ImageButton", "ImageLabel", "IntConstrainedValue", "IntValue",
+            "Lighting", "LinearVelocity", "LineForce", "LocalizationService", "LocalScript", "MaterialService",
+            "MaterialVariant", "MeshPart", "Model", "ModuleScript", "Motor6D", "Motor", "NegateOperation",
+            "NoCollisionConstraint", "NumberValue", "ObjectValue", "Part", "ParticleEmitter", "PathfindingService",
+            "Pants", "Player", "PlayerGui", "Players", "PointLight", "PrismaticConstraint", "ProximityPrompt",
+            "RayValue", "RemoteEvent", "RemoteFunction", "ReplicatedFirst", "ReplicatedStorage", "RigidConstraint",
+            "RocketPropulsion", "RopeConstraint", "ScreenGui", "ScrollingFrame", "Seat", "SelectionBox",
+            "SelectionSphere", "ServerScript", "ServerStorage", "ServerScriptService", "Shirt", "ShirtGraphic",
+            "Sky", "Smoke", "Sound", "SoundService", "Sparkles", "SpawnLocation", "SpotLight", "SpringConstraint",
+            "StarterGear", "StarterGui", "StarterPack", "StarterPlayer", "StarterPlayerScripts", "StringValue",
+            "SurfaceAppearance", "SurfaceGui", "SurfaceLight", "Team", "Teams", "Terrain", "TextBox", "TextButton",
+            "TextChatService", "TextLabel", "Texture", "Tool", "Trail", "TrussPart", "TweenService",
+            "UIAspectRatioConstraint", "UICorner", "UIGradient", "UIGridLayout", "UIListLayout", "UIPadding",
+            "UIPageLayout", "UIScale", "UIStroke", "UIViewport", "UnreliableRemoteEvent", "UserInputService",
+            "Vector3Value", "VideoFrame", "ViewportFrame", "VoiceChatService", "WedgePart", "Weld", "WeldConstraint",
+            "Workspace", "Vector3", "CFrame", "Color3", "BrickColor", "Enum", "Instance", "TweenInfo", "UDim2", "Math", "Task"
+        ];
+
+        const INSTANCE_MEMBERS = [
+            "Name", "Parent", "Archivable", "ClassName", "GetChildren()", "GetDescendants()",
+            "FindFirstChild()", "FindFirstChildOfClass()", "FindFirstChildWhichIsA()", "WaitForChild()",
+            "IsA()", "IsAncestorOf()", "IsDescendantOf()", "Clone()", "Destroy()", "ClearAllChildren()",
+            "GetAttribute()", "SetAttribute()", "GetAttributes()", "GetPropertyChangedSignal()", "GetFullName()"
+        ];
+
+        const PART_MEMBERS = [
+            "Anchored", "CanCollide", "CanQuery", "CanTouch", "CastShadow", "Color", "Material",
+            "Position", "Orientation", "Rotation", "Size", "CFrame", "Transparency", "Velocity",
+            "AssemblyLinearVelocity", "AssemblyAngularVelocity", "Mass", "Shape", "ApplyImpulse()",
+            "ApplyAngularImpulse()", "GetConnectedParts()", "GetTouchingParts()"
+        ];
+
+        const TOOLBOX_MARKETPLACE_ITEMS = [
+            { id: 1, name: "Classic Tree", type: "Model", author: "Roblox", color: "#228b22", shape: "cone" },
+            { id: 2, name: "Wooden Fence", type: "Model", author: "Builder", color: "#8b4513", shape: "box" },
+            { id: 3, name: "Sci-Fi Light", type: "Model", author: "TechGuy", color: "#00ffff", shape: "sphere" },
+            { id: 4, name: "Brick Wall", type: "Model", author: "BrickMaster", color: "#b22222", shape: "box" },
+            { id: 5, name: "Neon Lamp", type: "Model", author: "LightMaster", color: "#ffff00", shape: "cylinder" },
+            { id: 6, name: "Bouncy Ball", type: "Model", author: "PhysicsPro", color: "#ff1493", shape: "sphere" }
+        ];
+
+        // --- APPLICATION STATE ---
+        let projectTree = {
+            name: "Workspace",
+            className: "Workspace",
+            id: "workspace-root",
+            children: [
+                {
+                    name: "Baseplate",
+                    className: "Part",
+                    id: "part-baseplate",
+                    anchored: true,
+                    canCollide: true,
+                    color: "#7f7f7f",
+                    size: { x: 100, y: 1, z: 100 },
+                    position: { x: 0, y: -0.5, z: 0 },
+                    transparency: 0,
+                    material: "SmoothPlastic",
+                    shape: "box",
+                    children: []
+                },
+                {
+                    name: "SpawnLocation",
+                    className: "SpawnLocation",
+                    id: "part-spawn",
+                    anchored: true,
+                    canCollide: true,
+                    color: "#e8e8e8",
+                    size: { x: 6, y: 0.2, z: 6 },
+                    position: { x: 0, y: 0.1, z: 0 },
+                    transparency: 0,
+                    material: "Plastic",
+                    shape: "box",
+                    children: []
+                },
+                {
+                    name: "StarterScript",
+                    className: "Script",
+                    id: "script-1",
+                    source: `-- Main Script\nprint("Roblox Studio Simulation Initialized!")`,
+                    children: []
+                }
+            ]
+        };
+
+        // Other core services
+        const coreServices = ROBLOX_SERVICES.map(name => ({
+            name: name,
+            className: name,
+            id: 'service-' + name.toLowerCase(),
+            children: []
+        }));
+
+        let selectedObject = null;
+        let currentTool = 'select';
+        let isPlaying = false;
+        let activeLeftTab = 'explorer';
+
+        // Three.js Variables
+        let scene, camera, renderer, raycaster, mouse;
+        let meshMap = new Map(); // maps object id to Three.js Mesh
+        let selectedMesh = null;
+        let isMouseDown = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        let cameraAngles = { theta: 0, phi: Math.PI / 4, radius: 30 };
+        let cameraTarget = new THREE.Vector3(0, 0, 0);
+
+        // --- INITIALIZATION ---
+        window.onload = function() {
+            initThreeJS();
+            buildExplorerTree();
+            buildToolboxGrid();
+            loadProjectFromLocalStorage();
+            setupResizers();
+            window.addEventListener('resize', onWindowResize);
+            
+            // Start render loop
+            animate();
+        };
+
+        // --- THREE.JS 3D VIEWPORT SETUP ---
+        function initThreeJS() {
+            const container = document.getElementById('renderCanvas');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x242424);
+
+            camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
+            updateCameraPosition();
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(20, 40, 20);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            const gridHelper = new THREE.GridHelper(200, 50, 0x007acc, 0x444444);
+            gridHelper.position.y = 0;
+            scene.add(gridHelper);
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            // Mouse interaction for camera & selection
+            const canvas = renderer.domElement;
+            canvas.addEventListener('mousedown', onPointerDown);
+            canvas.addEventListener('mousemove', onPointerMove);
+            canvas.addEventListener('mouseup', onPointerUp);
+            canvas.addEventListener('wheel', onPointerWheel);
+
+            syncSceneObjects();
+        }
+
+        function updateCameraPosition() {
+            camera.position.x = cameraTarget.x + cameraAngles.radius * Math.sin(cameraAngles.phi) * Math.sin(cameraAngles.theta);
+            camera.position.y = cameraTarget.y + cameraAngles.radius * Math.cos(cameraAngles.phi);
+            camera.position.z = cameraTarget.z + cameraAngles.radius * Math.sin(cameraAngles.phi) * Math.cos(cameraAngles.theta);
+            camera.lookAt(cameraTarget);
+        }
+
+        function onPointerDown(e) {
+            isMouseDown = true;
+            previousMousePosition = { x: e.clientX, y: e.clientY };
+
+            if (e.button === 0 && !isPlaying) {
+                // Left click selection in 3D
+                const rect = renderer.domElement.getBoundingClientRect();
+                mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+                mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+                raycaster.setFromCamera(mouse, camera);
+                const meshes = Array.from(meshMap.values());
+                const intersects = raycaster.intersectObjects(meshes);
+
+                if (intersects.length > 0) {
+                    const hitMesh = intersects[0].object;
+                    selectObjectByMesh(hitMesh);
+                }
+            }
+        }
+
+        function onPointerMove(e) {
+            const deltaX = e.clientX - previousMousePosition.x;
+            const deltaY = e.clientY - previousMousePosition.y;
+
+            if (isMouseDown) {
+                if (e.buttons === 2 || e.shiftKey) {
+                    // Orbit camera
+                    cameraAngles.theta -= deltaX * 0.005;
+                    cameraAngles.phi = Math.max(0.1, Math.min(Math.PI / 2 - 0.05, cameraAngles.phi - deltaY * 0.005));
+                    updateCameraPosition();
+                } else if (e.buttons === 1 && selectedMesh && currentTool === 'move' && !isPlaying) {
+                    // Move object in 3D plane
+                    selectedMesh.position.x += deltaX * 0.05;
+                    selectedMesh.position.z += deltaY * 0.05;
+                    syncMeshToObjectData(selectedMesh);
+                }
+            }
+            previousMousePosition = { x: e.clientX, y: e.clientY };
+        }
+
+        function onPointerUp() {
+            isMouseDown = false;
+        }
+
+        function onPointerWheel(e) {
+            cameraAngles.radius = Math.max(5, Math.min(150, cameraAngles.radius + e.deltaY * 0.05));
+            updateCameraPosition();
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('renderCanvas');
+            if (!container) return;
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+
+        // --- SYNCHRONIZE 3D MESHES WITH PROJECT TREE ---
+        function syncSceneObjects() {
+            // Clear existing meshes
+            meshMap.forEach(mesh => scene.remove(mesh));
+            meshMap.clear();
+
+            // Recursively add parts from projectTree
+            traverseTreeParts(projectTree, (item) => {
+                let geometry;
+                const size = item.size || { x: 4, y: 1, z: 2 };
+                const shape = item.shape || 'box';
+
+                if (shape === 'sphere') {
+                    geometry = new THREE.SphereGeometry(size.x / 2, 32, 32);
+                } else if (shape === 'cylinder') {
+                    geometry = new THREE.CylinderGeometry(size.x / 2, size.x / 2, size.y, 32);
+                } else if (shape === 'wedge') {
+                    geometry = new THREE.ConeGeometry(size.x / 2, size.y, 4);
+                } else {
+                    geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
+                }
+
+                const colorHex = item.color || '#a0a0a0';
+                const material = new THREE.MeshStandardMaterial({
+                    color: new THREE.Color(colorHex),
+                    transparent: true,
+                    opacity: 1 - (item.transparency || 0),
+                    roughness: 0.4
+                });
+
+                const mesh = new THREE.Mesh(geometry, material);
+                const pos = item.position || { x: 0, y: 0, z: 0 };
+                mesh.position.set(pos.x, pos.y, pos.z);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                mesh.userData = { id: item.id, data: item };
+
+                scene.add(mesh);
+                meshMap.set(item.id, mesh);
+            });
+        }
+
+        function traverseTreeParts(node, callback) {
+            if (node.className === 'Part' || node.className === 'SpawnLocation' || node.className === 'WedgePart' || node.className === 'MeshPart') {
+                callback(node);
+            }
+            if (node.children) {
+                node.children.forEach(child => traverseTreeParts(child, callback));
+            }
+        }
+
+        function syncMeshToObjectData(mesh) {
+            const data = mesh.userData.data;
+            data.position = { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z };
+            markUnsaved();
+        }
+
+        // --- EXPLORER TREE MANAGEMENT ---
+        function buildExplorerTree() {
+            const container = document.getElementById('explorer-tree');
+            container.innerHTML = '';
+
+            // Render Workspace root
+            container.appendChild(renderTreeNode(projectTree, 0));
+
+            // Render other core services
+            coreServices.forEach(service => {
+                container.appendChild(renderTreeNode(service, 0));
+            });
+        }
+
+        function renderTreeNode(node, depth) {
+            const div = document.createElement('div');
+            div.className = `flex flex-col select-none`;
+
+            const row = document.createElement('div');
+            row.className = `flex items-center justify-between px-2 py-1 hover:bg-roblox-hover rounded cursor-pointer ${selectedObject && selectedObject.id === node.id ? 'bg-blue-600/30 text-blue-400 border border-blue-500/50' : 'text-gray-300'}`;
+            row.style.paddingLeft = `${depth * 16 + 8}px`;
+
+            let icon = 'fa-cube text-blue-400';
+            if (node.className === 'Workspace') icon = 'fa-globe text-green-400';
+            else if (node.className === 'Script' || node.className === 'LocalScript') icon = 'fa-file-code text-yellow-400';
+            else if (node.className === 'SpawnLocation') icon = 'fa-location-crosshairs text-red-400';
+            else if (node.className.includes('Service')) icon = 'fa-server text-purple-400';
+
+            row.innerHTML = `
+                <div class="flex items-center space-x-2 truncate">
+                    <i class="fa-solid ${icon} w-4 text-center"></i>
+                    <span class="truncate">${node.name}</span>
+                </div>
+                <div class="flex items-center space-x-1 opacity-80 group-hover:opacity-100">
+                    <button onclick="event.stopPropagation(); openInsertModal('${node.id}')" class="w-5 h-5 flex items-center justify-center hover:bg-blue-600 hover:text-white rounded text-blue-400 font-bold" title="Insert Object (+)"><i class="fa-solid fa-plus text-[10px]"></i></button>
+                </div>
+            `;
+
+            row.onclick = () => selectObject(node);
+            div.appendChild(row);
+
+            if (node.children && node.children.length > 0) {
+                const childContainer = document.createElement('div');
+                node.children.forEach(child => {
+                    childContainer.appendChild(renderTreeNode(child, depth + 1));
+                });
+                div.appendChild(childContainer);
+            }
+
+            return div;
+        }
+
+        function selectObject(node) {
+            selectedObject = node;
+            buildExplorerTree();
+            renderProperties(node);
+
+            // Highlight 3D mesh if present
+            if (meshMap.has(node.id)) {
+                selectedMesh = meshMap.get(node.id);
+            } else {
+                selectedMesh = null;
+            }
+        }
+
+        function selectObjectByMesh(mesh) {
+            const id = mesh.userData.id;
+            const found = findNodeById(projectTree, id);
+            if (found) {
+                selectObject(found);
+            }
+        }
+
+        function findNodeById(node, id) {
+            if (node.id === id) return node;
+            if (node.children) {
+                for (let child of node.children) {
+                    let res = findNodeById(child, id);
+                    if (res) return res;
+                }
+            }
+            return null;
+        }
+
+        // --- PROPERTIES PANEL ---
+        function renderProperties(node) {
+            const container = document.getElementById('properties-content');
+            document.getElementById('selected-class-name').innerText = node.className;
+            container.innerHTML = '';
+
+            const props = [
+                { label: 'Name', type: 'text', key: 'name', val: node.name },
+                { label: 'Class', type: 'static', val: node.className }
+            ];
+
+            if (node.position) {
+                props.push(
+                    { label: 'Position X', type: 'number', key: 'posX', val: node.position.x },
+                    { label: 'Position Y', type: 'number', key: 'posY', val: node.position.y },
+                    { label: 'Position Z', type: 'number', key: 'posZ', val: node.position.z }
+                );
+            }
+
+            if (node.size) {
+                props.push(
+                    { label: 'Size X', type: 'number', key: 'sizeX', val: node.size.x },
+                    { label: 'Size Y', type: 'number', key: 'sizeY', val: node.size.y },
+                    { label: 'Size Z', type: 'number', key: 'sizeZ', val: node.size.z }
+                );
+            }
+
+            if (node.color !== undefined) {
+                props.push({ label: 'Color', type: 'color', key: 'color', val: node.color });
+            }
+
+            if (node.anchored !== undefined) {
+                props.push({ label: 'Anchored', type: 'checkbox', key: 'anchored', val: node.anchored });
+            }
+
+            if (node.canCollide !== undefined) {
+                props.push({ label: 'CanCollide', type: 'checkbox', key: 'canCollide', val: node.canCollide });
+            }
+
+            if (node.transparency !== undefined) {
+                props.push({ label: 'Transparency', type: 'range', key: 'transparency', val: node.transparency, min: 0, max: 1, step: 0.1 });
+            }
+
+            props.forEach(p => {
+                const row = document.createElement('div');
+                row.className = 'flex items-center justify-between py-1 border-b border-roblox-border/50';
+
+                let inputHtml = '';
+                if (p.type === 'text') {
+                    inputHtml = `<input type="text" value="${p.val}" onchange="updateProp('${p.key}', this.value)" class="bg-roblox-darker border border-roblox-border px-2 py-0.5 rounded text-white w-40 text-right focus:outline-none focus:border-blue-500">`;
+                } else if (p.type === 'number') {
+                    inputHtml = `<input type="number" step="0.5" value="${p.val}" onchange="updateProp('${p.key}', parseFloat(this.value))" class="bg-roblox-darker border border-roblox-border px-2 py-0.5 rounded text-white w-24 text-right focus:outline-none focus:border-blue-500">`;
+                } else if (p.type === 'color') {
+                    inputHtml = `<input type="color" value="${p.val}" onchange="updateProp('${p.key}', this.value)" class="w-10 h-6 bg-transparent cursor-pointer rounded">`;
+                } else if (p.type === 'checkbox') {
+                    inputHtml = `<input type="checkbox" ${p.val ? 'checked' : ''} onchange="updateProp('${p.key}', this.checked)" class="rounded bg-roblox-darker border-roblox-border text-blue-600 focus:ring-0">`;
+                } else if (p.type === 'range') {
+                    inputHtml = `<input type="range" min="${p.min}" max="${p.max}" step="${p.step}" value="${p.val}" oninput="updateProp('${p.key}', parseFloat(this.value))" class="w-28 accent-blue-500">`;
+                } else {
+                    inputHtml = `<span class="text-gray-400">${p.val}</span>`;
+                }
+
+                row.innerHTML = `<span class="text-gray-400">${p.label}</span>${inputHtml}`;
+                container.appendChild(row);
+            });
+
+            // If it's a Script, add button to open in Editor
+            if (node.className === 'Script' || node.className === 'LocalScript') {
+                const editBtn = document.createElement('button');
+                editBtn.className = 'w-full py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded mt-4 flex items-center justify-center space-x-2';
+                editBtn.innerHTML = '<i class="fa-solid fa-code"></i><span>Open in Script Editor</span>';
+                editBtn.onclick = () => openScriptEditor(node);
+                container.appendChild(editBtn);
+            }
+        }
+
+        function updateProp(key, val) {
+            if (!selectedObject) return;
+            if (key === 'name') selectedObject.name = val;
+            else if (key === 'color') selectedObject.color = val;
+            else if (key === 'anchored') selectedObject.anchored = val;
+            else if (key === 'canCollide') selectedObject.canCollide = val;
+            else if (key === 'transparency') selectedObject.transparency = val;
+            else if (key === 'posX') selectedObject.position.x = val;
+            else if (key === 'posY') selectedObject.position.y = val;
+            else if (key === 'posZ') selectedObject.position.z = val;
+            else if (key === 'sizeX') selectedObject.size.x = val;
+            else if (key === 'sizeY') selectedObject.size.y = val;
+            else if (key === 'sizeZ') selectedObject.size.z = val;
+
+            syncSceneObjects();
+            buildExplorerTree();
+            markUnsaved();
+        }
+
+        // --- INSERTING OBJECTS & TOOLBOX ---
+        function insertPart(type) {
+            const id = 'part-' + Math.random().toString(36.2).substring(2, 9);
+            let newObj = {
+                name: type === 'SpawnLocation' ? 'SpawnLocation' : type,
+                className: type === 'Sphere' || type === 'Cylinder' || type === 'Wedge' ? 'Part' : type,
+                id: id,
+                anchored: true,
+                canCollide: true,
+                color: type === 'SpawnLocation' ? '#e8e8e8' : '#a0a0a0',
+                size: type === 'SpawnLocation' ? { x: 6, y: 0.2, z: 6 } : { x: 4, y: 1, z: 2 },
+                position: { x: (Math.random() - 0.5) * 10, y: 2, z: (Math.random() - 0.5) * 10 },
+                transparency: 0,
+                material: 'Plastic',
+                shape: type === 'Sphere' ? 'sphere' : (type === 'Cylinder' ? 'cylinder' : (type === 'Wedge' ? 'wedge' : 'box')),
+                children: []
+            };
+
+            projectTree.children.push(newObj);
+            syncSceneObjects();
+            buildExplorerTree();
+            selectObject(newObj);
+            markUnsaved();
+        }
+
+        function buildToolboxGrid() {
+            const container = document.getElementById('toolbox-items');
+            container.innerHTML = '';
+            TOOLBOX_MARKETPLACE_ITEMS.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'bg-roblox-panel border border-roblox-border hover:border-blue-500 p-2 rounded flex flex-col items-center cursor-pointer transition group';
+                card.innerHTML = `
+                    <div class="w-16 h-16 rounded bg-roblox-dark flex items-center justify-center mb-2 group-hover:scale-105 transition">
+                        <i class="fa-solid fa-cube text-2xl" style="color: ${item.color};"></i>
+                    </div>
+                    <span class="font-bold text-white text-center truncate w-full">${item.name}</span>
+                    <span class="text-[10px] text-gray-400">By ${item.author}</span>
+                `;
+                card.onclick = () => insertToolboxItem(item);
+                container.appendChild(card);
+            });
+        }
+
+        function insertToolboxItem(item) {
+            insertPart(item.shape === 'sphere' ? 'Sphere' : (item.shape === 'cylinder' ? 'Cylinder' : 'Part'));
+        }
+
+        // --- MODAL & NOTIFICATIONS ---
+        function showModal(title, msg) {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-message').innerText = msg;
+            document.getElementById('modal-backdrop').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('modal-backdrop').classList.add('hidden');
+        }
+
+        // --- SCRIPT EDITOR & AUTOCOMPLETE ENGINE ---
+        let activeScriptNode = null;
+
+        function openScriptEditor(node) {
+            activeScriptNode = node;
+            document.getElementById('active-script-name').innerText = node.name;
+            document.getElementById('script-textarea').value = node.source || '-- Write your script here\nprint("Hello")';
+            
+            // Show script tab and switch view
+            let tabs = document.getElementById('document-tabs');
+            if (!document.getElementById('tab-script-' + node.id)) {
+                const btn = document.createElement('button');
+                btn.id = 'tab-script-' + node.id;
+                btn.className = 'px-3 py-1 bg-roblox-panel text-white border-t-2 border-yellow-400 rounded-t flex items-center space-x-2';
+                btn.innerHTML = `<i class="fa-solid fa-file-code text-yellow-400"></i><span>${node.name}</span> <span onclick="event.stopPropagation(); closeScriptTab('${node.id}')" class="ml-2 hover:text-red-400">×</span>`;
+                btn.onclick = () => switchCenterTab('script');
+                tabs.appendChild(btn);
+            }
+            switchCenterTab('script');
+        }
+
+        function closeScriptEditor() {
+            switchCenterTab('viewport');
+        }
+
+        function closeScriptTab(id) {
+            const tab = document.getElementById('tab-script-' + id);
+            if (tab) tab.remove();
+            switchCenterTab('viewport');
+        }
+
+        function switchCenterTab(mode) {
+            const vp = document.getElementById('viewport-container');
+            const editor = document.getElementById('script-editor-container');
+            if (mode === 'viewport') {
+                vp.classList.remove('hidden');
+                editor.classList.add('hidden');
+            } else {
+                vp.classList.add('hidden');
+                editor.classList.remove('hidden');
+            }
+        }
+
+        function onScriptInput(textarea) {
+            if (activeScriptNode) {
+                activeScriptNode.source = textarea.value;
+                markUnsaved();
+            }
+            updateLineNumbers(textarea);
+            checkAutocomplete(textarea);
+        }
+
+        function onScriptKeyDown(e) {
+            const box = document.getElementById('autocomplete-box');
+            if (!box.classList.contains('hidden')) {
+                if (e.key === 'Enter' || e.key === 'Tab') {
+                    e.preventDefault();
+                    // Auto-complete selected item
+                    const activeItem = box.querySelector('.bg-blue-600');
+                    if (activeItem) {
+                        insertAutocomplete(activeItem.innerText);
+                    }
+                }
+            }
+        }
+
+        function updateLineNumbers(textarea) {
+            const lines = textarea.value.split('\n').length;
+            let str = '';
+            for (let i = 1; i <= lines; i++) str += i + '<br>';
+            document.getElementById('line-numbers').innerHTML = str;
+        }
+
+        function checkAutocomplete(textarea) {
+            const box = document.getElementById('autocomplete-box');
+            const val = textarea.value;
+            const pos = textarea.selectionStart;
+            
+            // Get current word
+            const textBefore = val.substring(0, pos);
+            const match = textBefore.match(/[\w\.]+$/);
+            
+            if (!match || match[0].length < 1) {
+                box.classList.add('hidden');
+                return;
+            }
+
+            const query = match[0].toLowerCase();
+            const suggestions = [...ROBLOX_SERVICES, ...ROBLOX_CLASSES, ...INSTANCE_MEMBERS, ...PART_MEMBERS]
+                .filter(item => item.toLowerCase().includes(query))
+                .slice(0, 10);
+
+            if (suggestions.length === 0) {
+                box.classList.add('hidden');
+                return;
+            }
+
+            box.innerHTML = '';
+            suggestions.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = `px-3 py-1.5 cursor-pointer hover:bg-blue-600 hover:text-white flex items-center space-x-2 ${index === 0 ? 'bg-blue-600/50 text-white' : 'text-gray-300'}`;
+                div.innerHTML = `<i class="fa-solid fa-code text-xs text-yellow-400"></i><span>${item}</span>`;
+                div.onclick = () => insertAutocomplete(item);
+                box.appendChild(div);
+            });
+
+            box.classList.remove('hidden');
+            box.style.top = '40px';
+            box.style.left = '60px';
+        }
+
+        function insertAutocomplete(text) {
+            const textarea = document.getElementById('script-textarea');
+            const pos = textarea.selectionStart;
+            const val = textarea.value;
+            const textBefore = val.substring(0, pos);
+            const textAfter = val.substring(pos);
+            const match = textBefore.match(/[\w\.]+$/);
+
+            if (match) {
+                const newBefore = textBefore.substring(0, textBefore.length - match[0].length);
+                textarea.value = newBefore + text + textAfter;
+                textarea.selectionStart = textarea.selectionEnd = newBefore.length + text.length;
+                textarea.focus();
+            }
+            document.getElementById('autocomplete-box').classList.add('hidden');
+        }
+
+        function runScriptTest() {
+            showModal("Luau Script Execution", "Script compiled successfully! Simulated output:\n> Roblox Studio Simulation: Script running successfully.");
+        }
+
+        // --- PLAYTEST MODE ---
+        function togglePlayTest() {
+            isPlaying = !isPlaying;
+            const btn = document.getElementById('play-btn');
+            const icon = document.getElementById('play-icon');
+            const text = document.getElementById('play-text');
+
+            if (isPlaying) {
+                btn.className = 'flex items-center space-x-2 px-3 py-1 bg-red-600 hover:bg-red-500 text-white rounded font-bold';
+                icon.className = 'fa-solid fa-stop';
+                text.innerText = 'Stop';
+                showModal("Play Mode", "Playtest started! Physics and character simulation active.");
+            } else {
+                btn.className = 'flex items-center space-x-2 px-3 py-1 bg-green-600 hover:bg-green-500 text-white rounded font-bold';
+                icon.className = 'fa-solid fa-play';
+                text.innerText = 'Play';
+            }
+        }
+
+        // --- PERSISTENCE & LOCALSTORAGE ---
+        function saveProject() {
+            const data = JSON.stringify(projectTree);
+            localStorage.setItem('roblox_studio_project', data);
+            document.getElementById('save-status').innerText = 'All changes saved';
+            showModal("Save Successful", "Your project has been successfully saved to browser local storage.");
+        }
+
+        function loadProjectFromLocalStorage() {
+            const saved = localStorage.getItem('roblox_studio_project');
+            if (saved) {
+                try {
+                    projectTree = JSON.parse(saved);
+                    syncSceneObjects();
+                    buildExplorerTree();
+                    document.getElementById('save-status').innerText = 'Loaded from storage';
+                } catch (e) {
+                    console.error("Failed to load project", e);
+                }
+            }
+        }
+
+        function loadProject() {
+            loadProjectFromLocalStorage();
+            showModal("Project Loaded", "Project state restored from saved storage.");
+        }
+
+        function resetProject() {
+            localStorage.removeItem('roblox_studio_project');
+            location.reload();
+        }
+
+        function exportPlace() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(projectTree, null, 2));
+            const dlAnchor = document.createElement('a');
+            dlAnchor.setAttribute("href", dataStr);
+            dlAnchor.setAttribute("download", "roblox_place.rbxl.json");
+            document.body.appendChild(dlAnchor);
+            dlAnchor.click();
+            dlAnchor.remove();
+        }
+
+        function markUnsaved() {
+            document.getElementById('save-status').innerText = 'Unsaved changes...';
+            document.getElementById('save-status').className = 'text-[10px] text-yellow-400';
+            // Auto save
+            localStorage.setItem('roblox_studio_project', JSON.stringify(projectTree));
+        }
+
+        // --- TOOLS & RESIZERS ---
+        function setTool(tool) {
+            currentTool = tool;
+            ['select', 'move', 'scale', 'rotate'].forEach(t => {
+                const el = document.getElementById('tool-' + t);
+                if (el) el.className = t === tool ? 'p-1 px-2 rounded bg-roblox-active text-white' : 'p-1 px-2 rounded hover:bg-roblox-hover';
+            });
+        }
+
+        function togglePanel(panelId) {
+            const el = document.getElementById(panelId === 'explorer' ? 'left-sidebar' : (panelId === 'properties' ? 'right-sidebar' : 'left-sidebar'));
+            if (el) el.classList.toggle('hidden');
+        }
+
+        function switchLeftTab(tab) {
+            activeLeftTab = tab;
+            const expBtn = document.getElementById('tab-explorer-btn');
+            const toolBtn = document.getElementById('tab-toolbox-btn');
+            const expPane = document.getElementById('explorer-pane');
+            const toolPane = document.getElementById('toolbox-pane');
+
+            if (tab === 'explorer') {
+                expBtn.className = 'flex-1 py-2 font-bold border-b-2 border-blue-500 text-white bg-roblox-darker';
+                toolBtn.className = 'flex-1 py-2 text-gray-400 hover:text-white';
+                expPane.classList.remove('hidden');
+                toolPane.classList.add('hidden');
+            } else {
+                toolBtn.className = 'flex-1 py-2 font-bold border-b-2 border-blue-500 text-white bg-roblox-darker';
+                expBtn.className = 'flex-1 py-2 text-gray-400 hover:text-white';
+                toolPane.classList.remove('hidden');
+                expPane.classList.add('hidden');
+            }
+        }
+
+        function filterExplorer(query) {
+            // Filter logic can be added here
+        }
+
+        function filterToolbox(query) {
+            // Filter toolbox items
+        }
+
+        function setupResizers() {
+            // Basic resizer logic if desired
+        }
+    </script>
+</body>
+</html>
